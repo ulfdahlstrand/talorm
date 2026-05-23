@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Talormar</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    touch-action: manipulation;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 6vw, 2.4rem);
+    color: #4a2;
+    text-shadow: 2px 2px 0 #fff;
+    margin-bottom: 4px;
+  }
+
+  #subtitle {
+    font-size: clamp(0.85rem, 3.5vw, 1.1rem);
+    color: #555;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  #hud {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  #next-label {
+    background: #fff;
+    border-radius: 12px;
+    padding: 6px 16px;
+    font-size: clamp(1rem, 4vw, 1.4rem);
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+
+  #next-num {
+    color: #e44;
+    font-size: 1.4em;
+  }
+
+  #progress-bar-wrap {
+    background: #ddd;
+    border-radius: 10px;
+    width: 160px;
+    height: 14px;
+    overflow: hidden;
+  }
+
+  #progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4cd, #4a2);
+    border-radius: 10px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  #grid-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  #grid {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+
+  .cell {
+    width: clamp(52px, 16vw, 72px);
+    height: clamp(52px, 16vw, 72px);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    border: 3px solid transparent;
+    transition: transform 0.1s, background 0.2s;
+  }
+
+  .cell.empty {
+    background: #fff;
+    border-color: #ccc;
+    color: transparent;
+  }
+
+  .cell.empty.valid-next {
+    border-color: #f80;
+    background: #fff8e8;
+    animation: pulse 0.8s infinite alternate;
+  }
+
+  .cell.filled {
+    background: linear-gradient(135deg, #a8edea, #9be);
+    border-color: #5ab;
+    color: #235;
+    cursor: default;
+    animation: pop 0.2s;
+  }
+
+  .cell.given {
+    background: linear-gradient(135deg, #ffd97d, #f9a);
+    border-color: #e80;
+    color: #630;
+    cursor: default;
+  }
+
+  .cell:active.empty { transform: scale(0.92); }
+
+  @keyframes pulse {
+    from { box-shadow: 0 0 0 0 rgba(255,140,0,0.4); }
+    to   { box-shadow: 0 0 0 8px rgba(255,140,0,0); }
+  }
+
+  @keyframes pop {
+    0%   { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+
+  #buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  button {
+    padding: 10px 22px;
+    border-radius: 30px;
+    border: none;
+    font-family: inherit;
+    font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    transition: transform 0.1s;
+  }
+
+  button:active { transform: scale(0.94); }
+
+  #btn-hint   { background: #ffd97d; color: #630; }
+  #btn-reset  { background: #f9a; color: #600; }
+  #btn-next   { background: #4cd; color: #034; display: none; }
+
+  #level-select {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .lvl-btn {
+    padding: 7px 16px;
+    border-radius: 20px;
+    border: 3px solid transparent;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    background: #fff;
+    color: #444;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: transform 0.1s;
+  }
+
+  .lvl-btn.active { border-color: #4a2; background: #d4f5d4; }
+
+  #message {
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+    font-weight: bold;
+    text-align: center;
+    min-height: 2em;
+    color: #4a2;
+    text-shadow: 1px 1px 0 #fff;
+  }
+
+  #snake-anim {
+    font-size: 2rem;
+    display: inline-block;
+    animation: wiggle 1s infinite;
+  }
+
+  @keyframes wiggle {
+    0%,100% { transform: rotate(-10deg); }
+    50%      { transform: rotate(10deg); }
+  }
+
+  #confetti-wrap {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 100;
+  }
+
+  .confetti-piece {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    animation: fall linear forwards;
+  }
+
+  @keyframes fall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<h1><span id="snake-anim">🐍</span> Talormar</h1>
+<p id="subtitle">Fyll i siffrorna i rätt ordning!</p>
+
+<div id="level-select"></div>
+
+<div id="hud">
+  <div id="next-label">Nästa: <span id="next-num">1</span></div>
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+</div>
+
+<div id="grid-container">
+  <div id="grid"></div>
+</div>
+
+<div id="buttons">
+  <button id="btn-hint">💡 Tips</button>
+  <button id="btn-reset">🔄 Börja om</button>
+  <button id="btn-next">Nästa nivå ➡️</button>
+</div>
+
+<p id="message"></p>
+<div id="confetti-wrap"></div>
+
+<script>
+// ─── Puzzle definitions ───────────────────────────────────────────────────────
+// Each puzzle: { size, path: [[r,c],...], given: {index: number} }
+// "path" is the snake path (index 0 = position of number 1, etc.)
+// "given" = cells pre-revealed as clues (index in path → display number = index+1)
+
+const PUZZLES = [
+  // Level 1 – 3×3 spiral, 4 given
+  {
+    size: 3,
+    path: [[0,0],[0,1],[0,2],[1,2],[2,2],[2,1],[2,0],[1,0],[1,1]],
+    given: {0:1, 2:3, 4:5, 8:9}
+  },
+  // Level 2 – 4×4 spiral, 4 given
+  {
+    size: 4,
+    path: [
+      [0,0],[0,1],[0,2],[0,3],
+      [1,3],[2,3],[3,3],
+      [3,2],[3,1],[3,0],
+      [2,0],[1,0],
+      [1,1],[1,2],
+      [2,2],[2,1]
+    ],
+    given: {0:1, 3:4, 7:8, 12:13}
+  },
+  // Level 3 – 4×4 S-shape
+  {
+    size: 4,
+    path: [
+      [0,0],[0,1],[0,2],[0,3],
+      [1,3],[1,2],[1,1],[1,0],
+      [2,0],[2,1],[2,2],[2,3],
+      [3,3],[3,2],[3,1],[3,0]
+    ],
+    given: {0:1, 5:6, 10:11, 15:16}
+  },
+  // Level 4 – 4×4 zigzag harder, fewer hints
+  {
+    size: 4,
+    path: [
+      [3,0],[2,0],[1,0],[0,0],
+      [0,1],[1,1],[2,1],[3,1],
+      [3,2],[2,2],[1,2],[0,2],
+      [0,3],[1,3],[2,3],[3,3]
+    ],
+    given: {0:1, 7:8, 11:12}
+  },
+  // Level 5 – 5×5, spiral, 5 given
+  {
+    size: 5,
+    path: [
+      [0,0],[0,1],[0,2],[0,3],[0,4],
+      [1,4],[2,4],[3,4],[4,4],
+      [4,3],[4,2],[4,1],[4,0],
+      [3,0],[2,0],[1,0],
+      [1,1],[1,2],[1,3],
+      [2,3],[3,3],[3,2],[3,1],[2,1],[2,2]
+    ],
+    given: {0:1, 4:5, 12:13, 19:20, 24:25}
+  },
+  // Level 6 – 5×5 S-shape
+  {
+    size: 5,
+    path: [
+      [0,0],[0,1],[0,2],[0,3],[0,4],
+      [1,4],[1,3],[1,2],[1,1],[1,0],
+      [2,0],[2,1],[2,2],[2,3],[2,4],
+      [3,4],[3,3],[3,2],[3,1],[3,0],
+      [4,0],[4,1],[4,2],[4,3],[4,4]
+    ],
+    given: {0:1, 6:7, 12:13, 18:19, 24:25}
+  }
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentLevel = 0;
+let puzzle = null;
+let cellStates = [];   // 'given' | 'filled' | 'empty'  per grid index
+let pathIndexOf = [];  // pathIndexOf[gridIdx] = snake index (0-based)
+let nextToPlace = 0;   // snake index of the next number to place (0-based)
+let totalToFill = 0;
+
+// ─── Build level buttons ──────────────────────────────────────────────────────
+const levelSelect = document.getElementById('level-select');
+PUZZLES.forEach((_, i) => {
+  const b = document.createElement('button');
+  b.className = 'lvl-btn' + (i === 0 ? ' active' : '');
+  b.textContent = 'Nivå ' + (i + 1);
+  b.onclick = () => loadLevel(i);
+  levelSelect.appendChild(b);
+});
+
+// ─── Load a level ─────────────────────────────────────────────────────────────
+function loadLevel(lvl) {
+  currentLevel = lvl;
+  document.querySelectorAll('.lvl-btn').forEach((b, i) => b.classList.toggle('active', i === lvl));
+  puzzle = PUZZLES[lvl];
+  const { size, path, given } = puzzle;
+  const total = size * size;
+
+  // Build lookup: grid index → path index
+  pathIndexOf = new Array(total).fill(-1);
+  path.forEach((rc, pi) => { pathIndexOf[rc[0] * size + rc[1]] = pi; });
+
+  // Cell states
+  cellStates = new Array(total).fill('empty');
+  Object.keys(given).forEach(pi => {
+    const [r, c] = path[+pi];
+    cellStates[r * size + c] = 'given';
+  });
+
+  // nextToPlace = first snake index not given
+  nextToPlace = 0;
+  while (nextToPlace < path.length && cellStates[path[nextToPlace][0] * size + path[nextToPlace][1]] === 'given') {
+    nextToPlace++;
+  }
+  totalToFill = path.length - Object.keys(given).length;
+
+  setMessage('');
+  document.getElementById('btn-next').style.display = 'none';
+  renderGrid();
+  updateHUD();
+}
+
+// ─── Render grid ──────────────────────────────────────────────────────────────
+function renderGrid() {
+  const { size, path } = puzzle;
+  const grid = document.getElementById('grid');
+  const cellSize = Math.min(72, Math.floor((Math.min(window.innerWidth, 420) - 60) / size));
+  grid.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+  grid.innerHTML = '';
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const gi = r * size + c;
+      const pi = pathIndexOf[gi];
+      const div = document.createElement('div');
+      div.style.width = div.style.height = cellSize + 'px';
+      div.style.fontSize = Math.round(cellSize * 0.38) + 'px';
+      div.dataset.gi = gi;
+
+      if (pi === -1) {
+        // Not part of path – shouldn't happen in our puzzles but just in case
+        div.className = 'cell';
+        div.style.background = '#eee';
+        div.style.borderColor = '#ddd';
+      } else if (cellStates[gi] === 'given') {
+        div.className = 'cell given';
+        div.textContent = pi + 1;
+      } else if (cellStates[gi] === 'filled') {
+        div.className = 'cell filled';
+        div.textContent = pi + 1;
+      } else {
+        div.className = 'cell empty';
+        if (isValidNext(gi)) div.classList.add('valid-next');
+        div.addEventListener('click', () => onCellClick(gi));
+        div.addEventListener('touchend', e => { e.preventDefault(); onCellClick(gi); });
+      }
+      grid.appendChild(div);
+    }
+  }
+}
+
+function isValidNext(gi) {
+  if (nextToPlace >= puzzle.path.length) return false;
+  const [nr, nc] = puzzle.path[nextToPlace];
+  return gi === nr * puzzle.size + nc;
+}
+
+// ─── Cell click ───────────────────────────────────────────────────────────────
+function onCellClick(gi) {
+  if (cellStates[gi] !== 'empty') return;
+  const pi = pathIndexOf[gi];
+  if (pi !== nextToPlace) {
+    // Wrong cell – shake
+    const el = document.querySelector(`[data-gi="${gi}"]`);
+    el.style.transition = 'transform 0.05s';
+    el.style.transform = 'translateX(6px)';
+    setTimeout(() => { el.style.transform = 'translateX(-6px)'; }, 60);
+    setTimeout(() => { el.style.transform = ''; }, 120);
+    return;
+  }
+
+  cellStates[gi] = 'filled';
+  nextToPlace++;
+
+  // Skip over given cells
+  while (nextToPlace < puzzle.path.length) {
+    const [nr, nc] = puzzle.path[nextToPlace];
+    if (cellStates[nr * puzzle.size + nc] === 'given') nextToPlace++;
+    else break;
+  }
+
+  renderGrid();
+  updateHUD();
+
+  if (nextToPlace >= puzzle.path.length) {
+    setTimeout(onComplete, 200);
+  }
+}
+
+// ─── HUD ──────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  const filled = puzzle.path.filter((rc, pi) => {
+    const gi = rc[0] * puzzle.size + rc[1];
+    return cellStates[gi] === 'filled';
+  }).length;
+  document.getElementById('next-num').textContent = nextToPlace + 1;
+  const pct = totalToFill > 0 ? (filled / totalToFill) * 100 : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+// ─── Hint ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-hint').onclick = () => {
+  if (nextToPlace >= puzzle.path.length) return;
+  const [r, c] = puzzle.path[nextToPlace];
+  const gi = r * puzzle.size + c;
+  cellStates[gi] = 'filled';
+  nextToPlace++;
+  while (nextToPlace < puzzle.path.length) {
+    const [nr, nc] = puzzle.path[nextToPlace];
+    if (cellStates[nr * puzzle.size + nc] === 'given') nextToPlace++;
+    else break;
+  }
+  renderGrid();
+  updateHUD();
+  if (nextToPlace >= puzzle.path.length) setTimeout(onComplete, 200);
+};
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').onclick = () => loadLevel(currentLevel);
+
+// ─── Next level ───────────────────────────────────────────────────────────────
+document.getElementById('btn-next').onclick = () => {
+  if (currentLevel + 1 < PUZZLES.length) loadLevel(currentLevel + 1);
+};
+
+// ─── Complete ─────────────────────────────────────────────────────────────────
+function onComplete() {
+  setMessage('🎉 Bra jobbat! Du klarade det! 🌟');
+  confetti();
+  if (currentLevel + 1 < PUZZLES.length) {
+    document.getElementById('btn-next').style.display = 'inline-block';
+  } else {
+    setMessage('🏆 Du klarade alla nivåer! Fantastiskt! 🐍🌟');
+  }
+}
+
+function setMessage(msg) {
+  document.getElementById('message').innerHTML = msg;
+}
+
+// ─── Confetti ─────────────────────────────────────────────────────────────────
+function confetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  wrap.innerHTML = '';
+  const colors = ['#f44','#4cd','#ff0','#f90','#a4f','#4f4'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    el.style.animationDelay = Math.random() * 0.5 + 's';
+    el.style.width = el.style.height = (8 + Math.random() * 10) + 'px';
+    wrap.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadLevel(0);
+</script>
+</body>
+</html>
