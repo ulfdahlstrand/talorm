@@ -22,9 +22,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: balmersclock/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: balmersclock
+
+      - name: Build Balmer's Peak clock
+        run: npm run build
+        working-directory: balmersclock
+
+      - name: Assemble deployment directory
+        run: |
+          mkdir -p _site/balmersclock
+          cp index.html _site/index.html
+          cp -r balmersclock/dist/. _site/balmersclock/
+
       - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
+
       - uses: actions/deploy-pages@v4
         id: deployment
